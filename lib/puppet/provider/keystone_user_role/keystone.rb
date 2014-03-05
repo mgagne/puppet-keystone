@@ -14,7 +14,7 @@ Puppet::Type.type(:keystone_user_role).provide(
 
 
   def self.prefetch(resource)
-    # rebuild the cahce for every puppet run
+    # rebuild the cache for every puppet run
     @user_role_hash = nil
   end
 
@@ -47,10 +47,11 @@ Puppet::Type.type(:keystone_user_role).provide(
 
   def self.get_user_and_tenant(user, tenant)
     @tenant_hash ||= {}
-    @user_hash   ||= {}
     @tenant_hash[tenant] = @tenant_hash[tenant] || get_tenant(tenant)
+    @user_hash ||= {}
+    @user_hash[user] = @user_hash[user] || get_user(user)
     [
-      get_user(@tenant_hash[tenant], user),
+      @user_hash[user],
       @tenant_hash[tenant]
     ]
   end
@@ -174,17 +175,6 @@ Puppet::Type.type(:keystone_user_role).provide(
       self.class.list_user_roles(user_id, tenant_id)
     end
 
-    def self.get_user(tenant_id, name)
-      @users ||= {}
-      user_key = "#{name}@#{tenant_id}"
-      unless @users[user_key]
-        list_keystone_objects('user', 4, '--tenant-id', tenant_id).each do |user|
-          @users["#{user[1]}@#{tenant_id}"] = user[0]
-        end
-      end
-      @users[user_key]
-    end
-
     def self.get_users(tenant_id='')
       @users = {}
       list_keystone_objects('user', 4, '--tenant-id', tenant_id).each do |user|
@@ -201,6 +191,18 @@ Puppet::Type.type(:keystone_user_role).provide(
         end
       end
       @tenants
+    end
+
+    def self.get_user(name)
+      unless (@users and @users[name])
+        @users = {}
+        list_keystone_objects('user', 4).each do |user|
+          if user[1] == name
+            @users[user[1]] = user[0]
+          end
+        end
+      end
+      @users[name]
     end
 
     def self.get_tenant(name)
